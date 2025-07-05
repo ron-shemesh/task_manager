@@ -1,3 +1,5 @@
+# Save the updated HTML calendar code with LocalStorage save/restore support
+calendar_code = """
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -193,6 +195,8 @@
 
         calendarGrid.appendChild(cell);
       }
+
+      restoreState();
     }
 
     function addTask(container, content = 'משימה חדשה') {
@@ -207,17 +211,22 @@
       deleteBtn.onclick = (e) => {
         e.stopPropagation();
         task.remove();
+        saveState();
       };
 
       task.appendChild(deleteBtn);
       task.onclick = (e) => {
         if (e.target !== deleteBtn) {
           const color = prompt('בחר צבע HEX', task.style.background || '#3b5998');
-          if (color) task.style.background = color;
+          if (color) {
+            task.style.background = color;
+            saveState();
+          }
         }
       };
 
       container.appendChild(task);
+      saveState();
     }
 
     function addTaskToSidebar() {
@@ -226,16 +235,74 @@
     }
 
     function prevMonth() {
+      saveState();
       currentDate.setMonth(currentDate.getMonth() - 1);
       renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
     }
 
     function nextMonth() {
+      saveState();
       currentDate.setMonth(currentDate.getMonth() + 1);
       renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+    }
+
+    function saveState() {
+      const data = [];
+      document.querySelectorAll('.day').forEach((cell, i) => {
+        const tasks = Array.from(cell.querySelectorAll('.task')).map(task => ({
+          text: task.innerText.replace('🗑️', '').trim(),
+          color: task.style.background
+        }));
+        data[i] = tasks;
+      });
+      const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    function restoreState() {
+      const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+      const saved = JSON.parse(localStorage.getItem(key));
+      if (!saved) return;
+      document.querySelectorAll('.day').forEach((cell, i) => {
+        if (saved[i]) {
+          saved[i].forEach(task => {
+            const newTask = document.createElement('div');
+            newTask.className = 'task';
+            newTask.contentEditable = true;
+            newTask.innerText = task.text;
+            newTask.style.background = task.color || '#3b5998';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerText = '🗑️';
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.onclick = (e) => {
+              e.stopPropagation();
+              newTask.remove();
+              saveState();
+            };
+
+            newTask.appendChild(deleteBtn);
+            newTask.onclick = (e) => {
+              if (e.target !== deleteBtn) {
+                const color = prompt('בחר צבע HEX', newTask.style.background);
+                if (color) {
+                  newTask.style.background = color;
+                  saveState();
+                }
+              }
+            };
+
+            cell.appendChild(newTask);
+          });
+        }
+      });
     }
 
     renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
   </script>
 </body>
 </html>
+"""
+with open("/mnt/data/calendar_with_save.html", "w", encoding="utf-8") as f:
+    f.write(calendar_code)
+"/mnt/data/calendar_with_save.html"
